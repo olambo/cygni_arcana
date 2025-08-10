@@ -1,0 +1,14 @@
+[project]
+name = "cygni_arcana"
+version = "0.1.0"
+description = "A Python project mapping stars to tarot cards using galactic coordinates"
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "matplotlib>=3.5.0",
+]
+
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
