@@ -4,8 +4,34 @@
 import matplotlib.pyplot as plt
 import math
 
-# Constantst
+# Configuration
+DARK_MODE = True  # Set to False for light mode
+
+# Constants
 GALACTIC_CENTER_DISTANCE = 26000
+
+# Color themes
+THEMES = {
+    'light': {
+        'background': 'white',
+        'text': 'black',
+        'grid': 'black',
+        'black_hole_edge': 'black',
+        'black_hole_glow': '#FFD700',  # Golden glow for visibility
+        'sol_edge': 'orange'
+    },
+    'dark': {
+        'background': 'black',
+        'text': 'white',
+        'grid': 'white',
+        'black_hole_edge': 'white',
+        'black_hole_glow': '#FF8C00',  # Orange glow
+        'sol_edge': 'orange'
+    }
+}
+
+# Get current theme
+THEME = THEMES['dark' if DARK_MODE else 'light']
 
 # Star data
 STARS = [
@@ -99,19 +125,19 @@ STARS = [
 
     # Minor Arcana suits
     {"name": "Eltanin", "distance": 154, "longitude": 94, "size": 25,
-     "tarot": "Wands", "roman": "", "d_GC": 26154,
+     "tarot": "Wands", "roman": "♣", "d_GC": 26154,
      "color": "#FF4500", "tarot_highlight": "#FF4500"},
 
     {"name": "Thuban", "distance": 309, "longitude": 96, "size": 25,
-     "tarot": "Cups", "roman": "", "d_GC": 26309,
+     "tarot": "Cups", "roman": "♥", "d_GC": 26309,
      "color": "#ADD8E6", "tarot_highlight": "#87CEEB"},
 
     {"name": "Algenib", "distance": 390, "longitude": 162, "size": 25,
-     "tarot": "Swords", "roman": "", "d_GC": 26390,
+     "tarot": "Swords", "roman": "♠", "d_GC": 26390,
      "color": "#FFD700", "tarot_highlight": "#4682B4"},
 
     {"name": "Markab", "distance": 140, "longitude": 139, "size": 25,
-     "tarot": "Pentacles", "roman": "", "d_GC": 26140,
+     "tarot": "Pentacles", "roman": "♦", "d_GC": 26140,
      "color": "#228B22", "tarot_highlight": "#228B22"},
 ]
 
@@ -158,6 +184,7 @@ def categorize_distance_from_line(perpendicular_distance):
         return sign * 1  # Moderate distance from line (ahead/behind)
     else:
         return sign * 2  # Far from line (far_ahead/far_behind)
+
 
 def calculate_y_position(d_gc, star_name):
     """
@@ -224,85 +251,106 @@ def plot_star(ax, star):
     # Y position represents ordinal ranking by distance from GC
     y_pos = calculate_y_position(star['d_GC'], star['name'])
 
-    # Special styling for Sol
-    if star['name'] == "Sol":
-        edgecolor = 'orange'
+    # Special handling for Sagittarius A* (black hole)
+    if star['name'] == "Sagittarius A*":
+        # Draw the event horizon as a ring with glow effect
+        # Outer glow
+        ax.scatter(plot_x, y_pos, s=star['size'] * 12, c=THEME['black_hole_glow'],
+                   marker='o', alpha=0.4, zorder=2)
+        # Inner event horizon ring
+        ax.scatter(plot_x, y_pos, s=star['size'] * 10, facecolors='none',
+                   edgecolors=THEME['black_hole_edge'], linewidth=2,
+                   marker='o', zorder=3)
+        # Central black hole
+        ax.scatter(plot_x, y_pos, s=star['size'] * 6, c=THEME['background'],
+                   marker='o', edgecolors=THEME['black_hole_edge'], linewidth=1,
+                   zorder=4)
+        edgecolor = THEME['black_hole_edge']
+        linewidth = 2
+    elif star['name'] == "Sol":
+        # Use original star color with theme edge
+        ax.scatter(plot_x, y_pos, s=star['size'] * 10, c=star['color'],
+                   marker='o', edgecolors=THEME['sol_edge'], linewidth=2,
+                   zorder=3, alpha=0.8)
+        edgecolor = THEME['sol_edge']
         linewidth = 2
     else:
-        edgecolor = 'black'
+        # Regular stars - use original colors with appropriate edges
+        edge_color = THEME['text'] if star['color'] in ['#000000', '#FFFFFF'] else THEME['text']
+        ax.scatter(plot_x, y_pos, s=star['size'] * 10, c=star['color'],
+                   marker='o', edgecolors=edge_color, linewidth=1,
+                   zorder=3, alpha=0.8)
+        edgecolor = edge_color
         linewidth = 1
 
-    # Plot the star
-    ax.scatter(plot_x, y_pos, s=star['size'] * 10, c=star['color'],
-               marker='o', edgecolors=edgecolor, linewidth=linewidth,
-               zorder=3, alpha=0.8)
+    # Add label - uniform format with spaces
+    label = f"{star['name'].strip()} ({star['distance']} ly) {star['tarot']} ({star['roman']})"
 
-    # Add label - compressed format without extra spaces
-    if star['roman']:  # Major Arcana with Roman numerals
-        label = f"{star['name']}({star['distance']} ly) {star['tarot']}({star['roman']})"
-    else:  # Minor Arcana without parentheses
-        label = f"{star['name']}({star['distance']} ly) {star['tarot']}"
+    # Larger offset for black hole to avoid text touching symbol
+    offset = 36 if star['name'] == 'Sagittarius A*' else 16
 
-    ax.annotate(label, (plot_x, y_pos), xytext=(12, 0),
+    ax.annotate(label, (plot_x, y_pos), xytext=(offset, 0),
                 textcoords='offset points', va='center', ha='left',
-                fontsize=10, color='black')
+                fontsize=10, color=THEME['text'], fontfamily='DejaVu Sans')
 
 
 def setup_plot_appearance(ax):
     """
     Configure plot appearance, axes, and styling.
-
-    X-axis represents distance from the GC-Sol-GAC radial line
-    (in direction of galactic rotation vs counter-rotation)
-    Y-axis represents ordinal ranking by distance from Galactic Center
-
-    Args:
-        ax: Matplotlib axes object
     """
     # Set plot limits
     ax.set_xlim(-2.4, 3.2)
     ax.set_ylim(-0.8, 0.8)
 
     # X-axis categories represent distance to the GC-Sol-GAC line
-    # (in the direction of clockwise galactic rotation)
     x_ticks = [-2, -1, -0.5, 0, 0.5, 1, 2]
-
-    # Configure axes
-    # Dont really need this - it just adds noise
-    # x_labels = ['far_ahead', 'ahead', 'near_ahead', 'center', 'near_behind', 'behind', 'far_behind']
-    # ax.set_xticklabels(x_labels, rotation=45, ha='right')
-    # ax.set_xticks(x_ticks)
-    # ax.set_yticklabels([])
-
     ax.set_xticks([])
     ax.set_yticks([])
 
     # Add vertical grid lines for X-axis categories
     for x_val in x_ticks:
-        ax.axvline(x=x_val, color='black', alpha=0.3, linestyle='-', linewidth=0.5)
+        if x_val == 0:
+            ax.axvline(x=x_val, color='#FFD700', alpha=0.8, linestyle='--', linewidth=0.5)
+        else:
+            ax.axvline(x=x_val, color=THEME['grid'], alpha=0.3, linestyle='-', linewidth=0.5)
 
-    # Labels and title
-    ax.set_ylabel('(GAC ← → GC) Ordinal Distance Ranking', color='black', fontsize=12)
-    ax.set_xlabel('Distance from GC-Sol-GAC Line (Clockwise Galactic Rotation)', color='black', fontsize=12)
-    ax.set_title('Cygni Arcana - Stellar Positions Mapped to Tarot Cards by Galactic Coordinates', color='black', fontsize=14, fontweight='bold')
+    # Labels and title with specific font family
+    ax.set_ylabel('(GAC ← → GC) Ordinal Distance Ranking', color=THEME['text'], fontsize=12, fontfamily='sans-serif')
 
-    # Add GC and GAC annotations
-    bbox_style = dict(boxstyle="round,pad=0.1", facecolor='white')
+    # Manually place the X-axis label centered at X=0
+    ax.text(0, -0.685, 'Milky Way Rotation Direction', color=THEME['text'], fontsize=10,
+            ha='center', va='top', fontfamily='sans-serif')
 
-    ax.text(0, 0.76, 'GC', fontsize=14, fontweight='bold', color='darkred',
-            ha='center', va='center', bbox={**bbox_style, 'edgecolor': 'darkred'})
+    ax.set_title('Cygni Arcana - Stars Mapped to Tarot Cards by Galactic Coordinates',
+                 color=THEME['text'], fontsize=14, fontweight='bold', fontfamily='sans-serif')
 
-    ax.text(0, -0.76, 'GAC', fontsize=14, fontweight='bold', color='darkblue',
-            ha='center', va='center', bbox={**bbox_style, 'edgecolor': 'darkblue'})
+    # Add curved arrow showing galactic rotation direction
+    from matplotlib.patches import FancyArrowPatch
+
+    # The arrow is colored gold and dashed
+    arrow = FancyArrowPatch((-1.5, -0.65), (1.5, -0.65),
+                            connectionstyle="arc3,rad=0.05",
+                            arrowstyle='<-', mutation_scale=20,
+                            color='#FFD700', alpha=0.6, linewidth=1, linestyle='--')
+    ax.add_patch(arrow)
+
+    # Labels with Unicode symbols
+    # GC symbol
+    ax.text(0, 0.76, "⚛︎ GC", ha='center', va='center', fontsize=14, fontweight='bold',
+            color='#FFD700', fontfamily='sans-serif')
+
+    # The GAC label
+    ax.text(0, -0.75, "★ GAC", ha='center', va='bottom', fontsize=14, fontweight='bold',
+            color='#FFD700', fontfamily='sans-serif')
 
 
 def create_cygni_arcana_plot():
     """
     Create and display the Cygni Tarot plot.
     """
-    # Create figure with white background
-    fig, ax = plt.subplots(figsize=(16, 12), facecolor='white')
-    ax.set_facecolor('white')
+    # Create figure with theme background
+    fig, ax = plt.subplots(figsize=(16, 12), facecolor=THEME['background'])
+    ax.set_facecolor(THEME['background'])
 
     # Plot all stars
     for star in STARS:
@@ -313,7 +361,9 @@ def create_cygni_arcana_plot():
 
     # Finalize and save
     plt.tight_layout()
-    plt.savefig('../../generated/cygni_arcana_plot.png', dpi=300, bbox_inches='tight')
+    mode_suffix = '_dark' if DARK_MODE else '_light'
+    plt.savefig(f'../../generated/cygni_arcana_plot{mode_suffix}.png', dpi=300, bbox_inches='tight',
+                facecolor=THEME['background'])
     plt.show()
 
 
