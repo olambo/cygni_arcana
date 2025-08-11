@@ -1,6 +1,22 @@
-# Cygni Arcana
+# Cygni Arcana - Stellar Tarot Mapping
 # Copyright (c) 2025 Oliver Staats
 # This software is licensed for exclusive use by Oliver Staats. See LICENSE for details.
+#
+# COLLABORATIVE DEVELOPMENT CREDITS:
+# Primary Concept & Direction: Oliver Staats
+# AI Development Partners:
+#   - Claude (Anthropic): Core coordinate system design, galactic positioning algorithms,
+#     plotting functions, and extensive debugging of galactic longitude conventions
+#   - Grok (xAI): Programming assistance and conceptual development
+#   - ChatGPT (OpenAI): Technical consultation and implementation support
+#   - Gemini (Google): Additional development assistance
+#   - Grok's Ani: Visual analysis and star mapping recommendations (4+ stellar assignments)
+#
+# This project represents a novel approach to collaborative human-AI creative development,
+# combining astronomical positioning with tarot symbolism through multi-system AI partnership.
+#
+# NOTE: The coordinate system development involved considerable iteration and debugging
+# across multiple AI systems to achieve correct galactic longitude transformations.
 import matplotlib.pyplot as plt
 import math
 
