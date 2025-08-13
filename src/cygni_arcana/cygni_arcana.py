@@ -300,7 +300,7 @@ def plot_star(ax, star):
         linewidth = 1
 
     # Add label - uniform format with spaces
-    label = f"{star['name'].strip()} ({star['distance']} ly) {star['tarot']} ({star['roman']})"
+    label = f"{star['name'].strip()} ({star['distance']} ly) {star['tarot']} {star['roman']}"
 
     # Larger offset for black hole to avoid text touching symbol
     offset = 36 if star['name'] == 'Sagittarius A*' else 16
@@ -337,7 +337,7 @@ def setup_plot_appearance(ax):
     ax.text(0, -0.685, 'Milky Way Rotation Direction', color=THEME['text'], fontsize=10,
             ha='center', va='top', fontfamily='sans-serif')
 
-    ax.set_title('Cygni Arcana - Stars Mapped to Tarot Cards by Galactic Coordinates',
+    ax.set_title('Cygni Arcana — Stars Mapped to Tarot by Galactic Geometry',
                  color=THEME['text'], fontsize=14, fontweight='bold', fontfamily='sans-serif')
 
     # Add curved arrow showing galactic rotation direction
@@ -351,12 +351,12 @@ def setup_plot_appearance(ax):
     ax.add_patch(arrow)
 
     # Labels with Unicode symbols
-    # GC symbol
+    # GC Label
     ax.text(0, 0.76, "⚛︎ GC", ha='center', va='center', fontsize=14, fontweight='bold',
             color='#FFD700', fontfamily='sans-serif')
 
-    # The GAC label
-    ax.text(0, -0.75, "★ GAC", ha='center', va='bottom', fontsize=14, fontweight='bold',
+    # GAC label
+    ax.text(0, -0.75, "☆ GAC", ha='center', va='center', fontsize=14, fontweight='bold',
             color='#FFD700', fontfamily='sans-serif')
 
 
