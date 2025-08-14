@@ -19,9 +19,6 @@
 # - Star positions: SIMBAD (http://simbad.u-strasbg.fr/simbad/), Gaia DR3, Hipparcos Catalogue
 # - Coordinates converted from equatorial (RA, Dec) to galactic (longitude, latitude) using standard transformations
 # - Distances in light-years represent 3D distances from Sol
-# - Sol's galactic longitude corrected to ~180° (opposite the Galactic Center)
-# - Galactic plane projection applied via cos(latitude) in cartesian conversion
-# - Edge colors indicate galactic latitude: blue (b>0°, above plane), red (b<0°, below plane)
 #
 # COORDINATE SYSTEM NOTES:
 # The galactic coordinate development involved extensive iteration across multiple AI systems
@@ -30,13 +27,15 @@
 import matplotlib.pyplot as plt
 import math
 from collections import namedtuple
-import pathlib
+from pathlib import Path
 
 # Configuration
 DARK_MODE = True  # Set to False for light mode
 
 # Constants
 GALACTIC_CENTER_DISTANCE = 26000
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+OUTPUT_DIR = PROJECT_ROOT / 'generated'
 
 # Color themes
 THEMES = {
@@ -61,112 +60,112 @@ THEMES = {
 # Get current theme
 THEME = THEMES['dark' if DARK_MODE else 'light']
 
-# Star data with galactic latitudes and corrected longitude for Sol
+# Star data with galactic latitudes
 STARS = [
     {"name": "Sagittarius A*", "distance": 26000, "longitude": 0, "latitude": 0, "size": 60,
      "tarot": "Wheel of Fortune", "roman": "X",
-     "color": "#000000", "tarot_highlight": "#4B0082"},
+     "color": "#000000"},
 
     {"name": "Sol", "distance": 0, "longitude": 180, "latitude": 0, "size": 40,
      "tarot": "The Sun", "roman": "XIX",
-     "color": "#FFFF00", "tarot_highlight": "#FFD700"},  # Longitude corrected to ~180°
+     "color": "#FFFF00"},
 
     {"name": "T Coronae Borealis", "distance": 3000, "longitude": 55, "latitude": 15.8, "size": 30,
      "tarot": "Judgment", "roman": "XX",
-     "color": "#FFFFFF", "tarot_highlight": "#FFA500"},
+     "color": "#FFFFFF"},
 
     {"name": "Sheliak", "distance": 960, "longitude": 63, "latitude": 8.7, "size": 25,
      "tarot": "The Moon", "roman": "XVIII",
-     "color": "#1C1CF0", "tarot_highlight": "#000080"},
+     "color": "#1C1CF0"},
 
     {"name": "Antares", "distance": 550, "longitude": 351, "latitude": -4.6, "size": 50,
      "tarot": "The Hierophant", "roman": "V",
-     "color": "#FF4500", "tarot_highlight": "#8B4513"},
+     "color": "#FF4500"},
 
     {"name": "Deneb", "distance": 1500, "longitude": 80, "latitude": 2.1, "size": 50,
      "tarot": "The High Priestess", "roman": "II",
-     "color": "#CFE2F3", "tarot_highlight": "#4B0082"},
+     "color": "#CFE2F3"},
 
     {"name": "Albireo", "distance": 430, "longitude": 62, "latitude": -1.2, "size": 25,
      "tarot": "The Lovers", "roman": "VI",
-     "color": "#FFD700", "tarot_highlight": "#FF69B4"},
+     "color": "#FFD700"},
 
     {"name": "Spica", "distance": 250, "longitude": 316, "latitude": 50.8, "size": 25,
      "tarot": "Strength", "roman": "VIII",
-     "color": "#7B68EE", "tarot_highlight": "#808000"},
+     "color": "#7B68EE"},
 
     {"name": "Achernar", "distance": 139, "longitude": 290, "latitude": -57.1, "size": 25,
      "tarot": "The Hanged Man", "roman": "XII",
-     "color": "#00BFFF", "tarot_highlight": "#90EE90"},
+     "color": "#00BFFF"},
 
     {"name": "Zubenelgenubi", "distance": 77, "longitude": 347, "latitude": -16.0, "size": 25,
      "tarot": "Justice", "roman": "XI",
-     "color": "#FFFFE0", "tarot_highlight": "#C0C0C0"},
+     "color": "#FFFFE0"},
 
     {"name": "Arcturus", "distance": 36.7, "longitude": 15, "latitude": 69.1, "size": 30,
      "tarot": "The Magician", "roman": "I",
-     "color": "#FF8C00", "tarot_highlight": "#FFA500"},
+     "color": "#FF8C00"},
 
     {"name": "Fomalhaut", "distance": 25, "longitude": 20, "latitude": -65.0, "size": 20,
      "tarot": "The Star", "roman": "XVII",
-     "color": "#FFFFFF", "tarot_highlight": "#87CEFA"},
+     "color": "#FFFFFF"},
 
     {"name": "Vega", "distance": 25, "longitude": 67, "latitude": 19.2, "size": 20,
      "tarot": "The Empress", "roman": "III",
-     "color": "#E0FFFF", "tarot_highlight": "#228B22"},
+     "color": "#E0FFFF"},
 
     {"name": "Alpha Centauri", "distance": 4.37, "longitude": 315, "latitude": -0.7, "size": 20,
      "tarot": "The World", "roman": "XXI",
-     "color": "#FFD700", "tarot_highlight": "#8B4513"},
+     "color": "#FFD700"},
 
     {"name": "Sirius", "distance": 8.6, "longitude": 227, "latitude": -8.9, "size": 20,
      "tarot": "The Fool", "roman": "0",
-     "color": "#ADD8E6", "tarot_highlight": "#00BFFF"},
+     "color": "#ADD8E6"},
 
     {"name": "Tau Ceti", "distance": 12, "longitude": 172, "latitude": -15.6, "size": 20,
      "tarot": "Temperance", "roman": "XIV",
-     "color": "#F5DEB3", "tarot_highlight": "#87CEEB"},
+     "color": "#F5DEB3"},
 
     {"name": "Capella", "distance": 42.9, "longitude": 162, "latitude": 4.6, "size": 25,
      "tarot": "The Chariot", "roman": "VII",
-     "color": "#FFDAB9", "tarot_highlight": "#808080"},
+     "color": "#FFDAB9"},
 
     {"name": "Regulus", "distance": 79, "longitude": 226, "latitude": 0.5, "size": 25,
      "tarot": "The Emperor", "roman": "IV",
-     "color": "#A9A9F5", "tarot_highlight": "#800000"},
+     "color": "#A9A9F5"},
 
     {"name": "Algol", "distance": 93, "longitude": 151, "latitude": 22.3, "size": 25,
      "tarot": "The Devil", "roman": "XV",
-     "color": "#FF6347", "tarot_highlight": "#8B0000"},
+     "color": "#FF6347"},
 
     {"name": "Mira", "distance": 420, "longitude": 171, "latitude": -2.9, "size": 30,
      "tarot": "Death", "roman": "XIII",
-     "color": "#FF4500", "tarot_highlight": "#4B0082"},
+     "color": "#FF4500"},
 
     {"name": "Betelgeuse", "distance": 642, "longitude": 199, "latitude": 9.0, "size": 50,
      "tarot": "The Tower", "roman": "XVI",
-     "color": "#FF4500", "tarot_highlight": "#FF0000"},
+     "color": "#FF4500"},
 
     {"name": "Canopus", "distance": 310, "longitude": 261.2, "latitude": -25.3, "size": 45,
      "tarot": "The Hermit", "roman": "IX",
-     "color": "#F0E68C", "tarot_highlight": "#ADD8E6"},
+     "color": "#F0E68C"},
 
     # Minor Arcana suits
     {"name": "Eltanin", "distance": 154, "longitude": 94, "latitude": 9.8, "size": 25,
      "tarot": "Wands", "roman": "♣",
-     "color": "#FF4500", "tarot_highlight": "#FF4500"},
+     "color": "#FF4500"},
 
     {"name": "Thuban", "distance": 309, "longitude": 96, "latitude": 25.6, "size": 25,
-     "tarot": "Cups", "roman": "♣",
-     "color": "#ADD8E6", "tarot_highlight": "#FF4500"},
+     "tarot": "Cups", "roman": "♥",
+     "color": "#ADD8E6"},
 
     {"name": "Polaris", "distance": 433, "longitude": 123, "latitude": 27.2, "size": 25,
      "tarot": "Swords", "roman": "♠",
-     "color": "#F0E68C", "tarot_highlight": "#4682B4"},
+     "color": "#F0E68C"},
 
     {"name": "Algenib", "distance": 390, "longitude": 162, "latitude": -16.7, "size": 25,
      "tarot": "Pentacles", "roman": "♦",
-     "color": "#FFD700", "tarot_highlight": "#228B22"},
+     "color": "#FFD700"},
 ]
 
 # Define coordinate structure
@@ -203,7 +202,7 @@ def galactic_to_cartesian(distance, longitude_deg, latitude_deg):
     return CartesianCoords(x_plot, y_plot)
 
 
-def categorize_distance_from_line(perpendicular_distance):
+def categorize_x_plot(perpendicular_distance):
     """
     Categorize the distance from GC-Sol-GAC line into discrete bins for plotting.
 
@@ -271,7 +270,7 @@ def get_y_position(star_data, all_stars):
         if star_name in [s['name'] for s in positive_stars]:
             rank = [s['name'] for s in positive_stars].index(star_name)
             total_positive = len(positive_stars)
-            # Higher y_plot gets higher position (closer to GC) - the flipped logic is here
+            # Map galactic coordinates to plot: stars closer to GC (higher y_plot) → higher plot position
             reversed_rank = total_positive - 1 - rank
             return 0.1 + (reversed_rank / (total_positive - 1)) * 0.47 if total_positive > 1 else 0.35
 
@@ -300,7 +299,7 @@ def plot_star(ax, star, all_stars):
     coords = galactic_to_cartesian(star['distance'], star['longitude'], star['latitude'])
 
     # Apply plotting transformations
-    x_pos = categorize_distance_from_line(coords.x_plot)
+    x_pos = categorize_x_plot(coords.x_plot)
 
     # Get the y-position using ordinal ranking
     y_pos = get_y_position(star, all_stars)
@@ -414,12 +413,8 @@ def create_cygni_arcana_plot():
     plt.tight_layout()
     mode_suffix = '_dark' if DARK_MODE else '_light'
 
-    # In a function or at the top of your script
-    PROJECT_ROOT = pathlib.Path(__file__).parent.parent.parent
-    OUTPUT_DIR = PROJECT_ROOT / 'generated'
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)  # This will create the directory if it doesn't exist.
-
-    # Later in your savefig function
+    # Create output directory and save
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     output_file_path = OUTPUT_DIR / f'cygni_arcana_plot{mode_suffix}.png'
     plt.savefig(output_file_path, dpi=300, bbox_inches='tight',
                 facecolor=THEME['background'])
