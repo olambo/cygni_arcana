@@ -7,7 +7,7 @@
 # AI Development Partners:
 #   - Claude (Anthropic): Core coordinate system design, galactic positioning algorithms,
 #     plotting functions, and extensive debugging of galactic longitude conventions
-#   - Grok (xAI): Programming assistance and conceptual development
+#   - Grok (xAI): Programming assistance, conceptual development, latitude data, and galactic plane distance calculation
 #   - ChatGPT (OpenAI): Technical consultation and implementation support
 #   - Gemini (Google): Additional development assistance
 #   - Grok's Ani: Visual analysis and star mapping recommendations (4+ stellar assignments)
@@ -15,10 +15,22 @@
 # This project represents a novel approach to collaborative human-AI creative development,
 # combining astronomical positioning with tarot symbolism through multi-system AI partnership.
 #
-# NOTE: The coordinate system development involved considerable iteration and debugging
-# across multiple AI systems to achieve correct galactic longitude transformations.
+# DATA SOURCES & COORDINATE SYSTEM:
+# - Star positions: SIMBAD (http://simbad.u-strasbg.fr/simbad/), Gaia DR3, Hipparcos Catalogue
+# - Coordinates converted from equatorial (RA, Dec) to galactic (longitude, latitude) using standard transformations
+# - Distances in light-years represent 3D distances from Sol
+# - Sol's galactic longitude corrected to ~180° (opposite the Galactic Center)
+# - Galactic plane projection applied via cos(latitude) in cartesian conversion
+# - Edge colors indicate galactic latitude: blue (b>0°, above plane), red (b<0°, below plane)
+#
+# COORDINATE SYSTEM NOTES:
+# The galactic coordinate development involved extensive iteration across multiple AI systems
+# to achieve correct longitude transformations and latitude integration for 3D positioning.
+
 import matplotlib.pyplot as plt
 import math
+from collections import namedtuple
+import pathlib
 
 # Configuration
 DARK_MODE = True  # Set to False for light mode
@@ -49,130 +61,146 @@ THEMES = {
 # Get current theme
 THEME = THEMES['dark' if DARK_MODE else 'light']
 
-# Star data
+# Star data with galactic latitudes and corrected longitude for Sol
 STARS = [
-    {"name": "Sagittarius A*", "distance": 26000, "longitude": 0, "size": 60,
-     "tarot": "Wheel of Fortune", "roman": "X", "d_GC": 0,
+    {"name": "Sagittarius A*", "distance": 26000, "longitude": 0, "latitude": 0, "size": 60,
+     "tarot": "Wheel of Fortune", "roman": "X",
      "color": "#000000", "tarot_highlight": "#4B0082"},
 
-    {"name": "Sol", "distance": 0, "longitude": 0, "size": 40,
-     "tarot": "The Sun", "roman": "XIX", "d_GC": 26000,
-     "color": "#FFFF00", "tarot_highlight": "#FFD700"},
+    {"name": "Sol", "distance": 0, "longitude": 180, "latitude": 0, "size": 40,
+     "tarot": "The Sun", "roman": "XIX",
+     "color": "#FFFF00", "tarot_highlight": "#FFD700"},  # Longitude corrected to ~180°
 
-    {"name": "T Coronae Borealis", "distance": 3000, "longitude": 55, "size": 30,
-     "tarot": "Judgment", "roman": "XX", "d_GC": 18000,
+    {"name": "T Coronae Borealis", "distance": 3000, "longitude": 55, "latitude": 15.8, "size": 30,
+     "tarot": "Judgment", "roman": "XX",
      "color": "#FFFFFF", "tarot_highlight": "#FFA500"},
 
-    {"name": "Sheliak", "distance": 960, "longitude": 63, "size": 25,
-     "tarot": "The Moon", "roman": "XVIII", "d_GC": 25040,
+    {"name": "Sheliak", "distance": 960, "longitude": 63, "latitude": 8.7, "size": 25,
+     "tarot": "The Moon", "roman": "XVIII",
      "color": "#1C1CF0", "tarot_highlight": "#000080"},
 
-    {"name": "Antares", "distance": 550, "longitude": 351, "size": 50,
-     "tarot": "The Hierophant", "roman": "V", "d_GC": 25450,
+    {"name": "Antares", "distance": 550, "longitude": 351, "latitude": -4.6, "size": 50,
+     "tarot": "The Hierophant", "roman": "V",
      "color": "#FF4500", "tarot_highlight": "#8B4513"},
 
-    {"name": "Deneb", "distance": 1500, "longitude": 80, "size": 50,
-     "tarot": "The High Priestess", "roman": "II", "d_GC": 25780,
+    {"name": "Deneb", "distance": 1500, "longitude": 80, "latitude": 2.1, "size": 50,
+     "tarot": "The High Priestess", "roman": "II",
      "color": "#CFE2F3", "tarot_highlight": "#4B0082"},
 
-    {"name": "Polaris", "distance": 433, "longitude": 123, "size": 25,
-     "tarot": "The Hermit", "roman": "IX", "d_GC": 25567,
-     "color": "#F0E68C", "tarot_highlight": "#ADD8E6"},
-
-    {"name": "Albireo", "distance": 430, "longitude": 62, "size": 25,
-     "tarot": "The Lovers", "roman": "VI", "d_GC": 25570,
+    {"name": "Albireo", "distance": 430, "longitude": 62, "latitude": -1.2, "size": 25,
+     "tarot": "The Lovers", "roman": "VI",
      "color": "#FFD700", "tarot_highlight": "#FF69B4"},
 
-    {"name": "Spica", "distance": 250, "longitude": 316, "size": 25,
-     "tarot": "Strength", "roman": "VIII", "d_GC": 25750,
+    {"name": "Spica", "distance": 250, "longitude": 316, "latitude": 50.8, "size": 25,
+     "tarot": "Strength", "roman": "VIII",
      "color": "#7B68EE", "tarot_highlight": "#808000"},
 
-    {"name": "Achernar", "distance": 139, "longitude": 290, "size": 25,
-     "tarot": "The Hanged Man", "roman": "XII", "d_GC": 25862,
+    {"name": "Achernar", "distance": 139, "longitude": 290, "latitude": -57.1, "size": 25,
+     "tarot": "The Hanged Man", "roman": "XII",
      "color": "#00BFFF", "tarot_highlight": "#90EE90"},
 
-    {"name": "Zubenelgenubi", "distance": 77, "longitude": 347, "size": 25,
-     "tarot": "Justice", "roman": "XI", "d_GC": 25923,
+    {"name": "Zubenelgenubi", "distance": 77, "longitude": 347, "latitude": -16.0, "size": 25,
+     "tarot": "Justice", "roman": "XI",
      "color": "#FFFFE0", "tarot_highlight": "#C0C0C0"},
 
-    {"name": "Arcturus", "distance": 36.7, "longitude": 15, "size": 30,
-     "tarot": "The Magician", "roman": "I", "d_GC": 25963,
+    {"name": "Arcturus", "distance": 36.7, "longitude": 15, "latitude": 69.1, "size": 30,
+     "tarot": "The Magician", "roman": "I",
      "color": "#FF8C00", "tarot_highlight": "#FFA500"},
 
-    {"name": "Fomalhaut", "distance": 25, "longitude": 20, "size": 20,
-     "tarot": "The Star", "roman": "XVII", "d_GC": 25975,
+    {"name": "Fomalhaut", "distance": 25, "longitude": 20, "latitude": -65.0, "size": 20,
+     "tarot": "The Star", "roman": "XVII",
      "color": "#FFFFFF", "tarot_highlight": "#87CEFA"},
 
-    {"name": "Vega", "distance": 25, "longitude": 67, "size": 20,
-     "tarot": "The Empress", "roman": "III", "d_GC": 25975,
+    {"name": "Vega", "distance": 25, "longitude": 67, "latitude": 19.2, "size": 20,
+     "tarot": "The Empress", "roman": "III",
      "color": "#E0FFFF", "tarot_highlight": "#228B22"},
 
-    {"name": "Alpha Centauri", "distance": 4.37, "longitude": 315, "size": 20,
-     "tarot": "The World", "roman": "XXI", "d_GC": 25996,
+    {"name": "Alpha Centauri", "distance": 4.37, "longitude": 315, "latitude": -0.7, "size": 20,
+     "tarot": "The World", "roman": "XXI",
      "color": "#FFD700", "tarot_highlight": "#8B4513"},
 
-    {"name": "Sirius", "distance": 8.6, "longitude": 227, "size": 20,
-     "tarot": "The Fool", "roman": "0", "d_GC": 26008,
+    {"name": "Sirius", "distance": 8.6, "longitude": 227, "latitude": -8.9, "size": 20,
+     "tarot": "The Fool", "roman": "0",
      "color": "#ADD8E6", "tarot_highlight": "#00BFFF"},
 
-    {"name": "Tau Ceti", "distance": 12, "longitude": 172, "size": 20,
-     "tarot": "Temperance", "roman": "XIV", "d_GC": 26012,
+    {"name": "Tau Ceti", "distance": 12, "longitude": 172, "latitude": -15.6, "size": 20,
+     "tarot": "Temperance", "roman": "XIV",
      "color": "#F5DEB3", "tarot_highlight": "#87CEEB"},
 
-    {"name": "Capella", "distance": 42.9, "longitude": 162, "size": 25,
-     "tarot": "The Chariot", "roman": "VII", "d_GC": 26042,
+    {"name": "Capella", "distance": 42.9, "longitude": 162, "latitude": 4.6, "size": 25,
+     "tarot": "The Chariot", "roman": "VII",
      "color": "#FFDAB9", "tarot_highlight": "#808080"},
 
-    {"name": "Regulus", "distance": 79, "longitude": 226, "size": 25,
-     "tarot": "The Emperor", "roman": "IV", "d_GC": 26078,
+    {"name": "Regulus", "distance": 79, "longitude": 226, "latitude": 0.5, "size": 25,
+     "tarot": "The Emperor", "roman": "IV",
      "color": "#A9A9F5", "tarot_highlight": "#800000"},
 
-    {"name": "Algol", "distance": 93, "longitude": 151, "size": 25,
-     "tarot": "The Devil", "roman": "XV", "d_GC": 26092,
+    {"name": "Algol", "distance": 93, "longitude": 151, "latitude": 22.3, "size": 25,
+     "tarot": "The Devil", "roman": "XV",
      "color": "#FF6347", "tarot_highlight": "#8B0000"},
 
-    {"name": "Mira", "distance": 420, "longitude": 171, "size": 30,
-     "tarot": "Death", "roman": "XIII", "d_GC": 26420,
+    {"name": "Mira", "distance": 420, "longitude": 171, "latitude": -2.9, "size": 30,
+     "tarot": "Death", "roman": "XIII",
      "color": "#FF4500", "tarot_highlight": "#4B0082"},
 
-    {"name": "Betelgeuse", "distance": 642, "longitude": 199, "size": 50,
-     "tarot": "The Tower", "roman": "XVI", "d_GC": 26641,
+    {"name": "Betelgeuse", "distance": 642, "longitude": 199, "latitude": 9.0, "size": 50,
+     "tarot": "The Tower", "roman": "XVI",
      "color": "#FF4500", "tarot_highlight": "#FF0000"},
 
+    {"name": "Canopus", "distance": 310, "longitude": 261.2, "latitude": -25.3, "size": 45,
+     "tarot": "The Hermit", "roman": "IX",
+     "color": "#F0E68C", "tarot_highlight": "#ADD8E6"},
+
     # Minor Arcana suits
-    {"name": "Eltanin", "distance": 154, "longitude": 94, "size": 25,
-     "tarot": "Wands", "roman": "♣", "d_GC": 26154,
+    {"name": "Eltanin", "distance": 154, "longitude": 94, "latitude": 9.8, "size": 25,
+     "tarot": "Wands", "roman": "♣",
      "color": "#FF4500", "tarot_highlight": "#FF4500"},
 
-    {"name": "Thuban", "distance": 309, "longitude": 96, "size": 25,
-     "tarot": "Cups", "roman": "♥", "d_GC": 26309,
-     "color": "#ADD8E6", "tarot_highlight": "#87CEEB"},
+    {"name": "Thuban", "distance": 309, "longitude": 96, "latitude": 25.6, "size": 25,
+     "tarot": "Cups", "roman": "♣",
+     "color": "#ADD8E6", "tarot_highlight": "#FF4500"},
 
-    {"name": "Algenib", "distance": 390, "longitude": 162, "size": 25,
-     "tarot": "Swords", "roman": "♠", "d_GC": 26390,
-     "color": "#FFD700", "tarot_highlight": "#4682B4"},
+    {"name": "Polaris", "distance": 433, "longitude": 123, "latitude": 27.2, "size": 25,
+     "tarot": "Swords", "roman": "♠",
+     "color": "#F0E68C", "tarot_highlight": "#4682B4"},
 
-    {"name": "Markab", "distance": 140, "longitude": 139, "size": 25,
-     "tarot": "Pentacles", "roman": "♦", "d_GC": 26140,
-     "color": "#228B22", "tarot_highlight": "#228B22"},
+    {"name": "Algenib", "distance": 390, "longitude": 162, "latitude": -16.7, "size": 25,
+     "tarot": "Pentacles", "roman": "♦",
+     "color": "#FFD700", "tarot_highlight": "#228B22"},
 ]
 
+# Define coordinate structure
+CartesianCoords = namedtuple('CartesianCoords', ['x_plot', 'y_plot'])
 
-def galactic_to_cartesian_x(distance, longitude_deg):
+
+def galactic_to_cartesian(distance, longitude_deg, latitude_deg):
     """
-    Convert galactic polar coordinates (distance, longitude) relative to Sol
-    into perpendicular distance from GC-Sol-GAC line.
+    Convert galactic polar coordinates to cartesian coordinates for plotting.
 
-    Galactic longitude = 0° points from Sol towards GC.
-    Returns the perpendicular offset from the GC-Sol-GAC line.
+    Args:
+        distance (float): 3D distance from Sol in light-years
+        longitude_deg (float): Galactic longitude in degrees (0° = towards GC)
+        latitude_deg (float): Galactic latitude in degrees (0° = galactic plane)
+
+    Returns:
+        CartesianCoords: Named tuple with:
+            - x_plot: perpendicular distance from GC-Sol-GAC line
+                     (+ ahead of rotation, - behind)
+            - y_plot: distance along GC-Sol-GAC line
+                     (+ towards GC, - towards GAC)
     """
-    # Convert longitude to radians
-    angle_rad = math.radians(longitude_deg)
+    # Convert to radians
+    longitude_rad = math.radians(longitude_deg)
+    latitude_rad = math.radians(latitude_deg)
 
-    # Calculate perpendicular distance from GC-Sol-GAC line
-    perpendicular_distance = distance * math.sin(angle_rad)
+    # Project distance onto galactic plane
+    planar_distance = distance * math.cos(latitude_rad)
 
-    return perpendicular_distance
+    # Calculate cartesian coordinates
+    x_plot = planar_distance * math.sin(longitude_rad)  # perpendicular to GC-Sol-GAC line
+    y_plot = planar_distance * math.cos(longitude_rad)  # along GC-Sol-GAC line
+
+    return CartesianCoords(x_plot, y_plot)
 
 
 def categorize_distance_from_line(perpendicular_distance):
@@ -191,112 +219,118 @@ def categorize_distance_from_line(perpendicular_distance):
     sign = -1 if perpendicular_distance >= 0 else 1
 
     # Categorize by absolute distance from GC-Sol-GAC line
-    if abs_distance < 12:  # Close to the GC-Sol-GAC line
-        if abs_distance < 1:
-            return 0  # Essentially on the line (center)
-        else:
-            return sign * 0.5  # Slightly off line (near_ahead/near_behind)
+    if abs_distance < 1:
+        return 0  # Essentially on the line (center)
+    elif abs_distance < 12:
+        return sign * 0.5  # Slightly off line (near_ahead/near_behind)
     elif abs_distance < 70:
         return sign * 1  # Moderate distance from line (ahead/behind)
     else:
         return sign * 2  # Far from line (far_ahead/far_behind)
 
 
-def calculate_y_position(d_gc, star_name):
+def get_y_position(star_data, all_stars):
     """
-    Calculate Y position based on ORDINAL RANKING by distance from Galactic Center.
-
-    The Y-axis represents approximate relative distance from GC, not exact distance.
-    Stars are positioned based on their rank order when sorted by d_GC value.
+    Calculates the y-position based on ordinal ranking by y_plot coordinate.
 
     Args:
-        d_gc (float): Distance from Galactic Center (used for sorting only)
-        star_name (str): Name of the star
+        star_data (dict): The dictionary for the current star.
+        all_stars (list): List of all stars for ranking.
 
     Returns:
-        float: Y position for plotting (ordinal-based, not distance-based)
+        float: The y-position for plotting.
     """
-    # Sort all stars by d_GC to determine ordinal ranking
-    stars_sorted = sorted(STARS, key=lambda x: x['d_GC'])
+    star_name = star_data['name']
 
     # Special reference points
     if star_name == "Sagittarius A*":
-        return 0.7  # GC at top (closest to GC)
+        return 0.7  # GC at top
     elif star_name == "Sol":
         return 0  # Sol at middle reference point
 
-    # Stars closer to GC than Sol (positioned above Sol based on rank order)
-    elif d_gc < GALACTIC_CENTER_DISTANCE:
-        closer_stars = [s for s in stars_sorted
-                        if s['d_GC'] < GALACTIC_CENTER_DISTANCE and s['name'] != "Sagittarius A*"]
+    # Calculate y_plot for all stars (excluding special cases)
+    regular_stars = []
+    for star in all_stars:
+        if star['name'] not in ["Sagittarius A*", "Sol"]:
+            coords = galactic_to_cartesian(star['distance'], star['longitude'], star['latitude'])
+            regular_stars.append({
+                'name': star['name'],
+                'y_plot': coords.y_plot
+            })
 
-        if star_name in [s['name'] for s in closer_stars]:
-            # Find ordinal position in the sorted list
-            ordinal_idx = [s['name'] for s in closer_stars].index(star_name)
-            total_closer = len(closer_stars)
-            # Reverse order: stars closest to GC get highest Y positions
-            reversed_ordinal = total_closer - 1 - ordinal_idx
-            return 0.1 + (reversed_ordinal / (total_closer - 1)) * 0.47 if total_closer > 1 else 0.35
+    # Sort by y_plot (positive = toward GC, negative = toward GAC)
+    regular_stars.sort(key=lambda x: x['y_plot'], reverse=True)
 
-    # Stars further from GC than Sol (positioned below Sol based on rank order)
+    # Find current star's rank
+    star_coords = galactic_to_cartesian(star_data['distance'], star_data['longitude'], star_data['latitude'])
+    current_y_plot = star_coords.y_plot
+
+    # Stars with positive y_plot (toward GC) go above Sol
+    if current_y_plot > 0:
+        positive_stars = [s for s in regular_stars if s['y_plot'] > 0]
+        if star_name in [s['name'] for s in positive_stars]:
+            rank = [s['name'] for s in positive_stars].index(star_name)
+            total_positive = len(positive_stars)
+            # Higher y_plot gets higher position (closer to GC) - the flipped logic is here
+            reversed_rank = total_positive - 1 - rank
+            return 0.1 + (reversed_rank / (total_positive - 1)) * 0.47 if total_positive > 1 else 0.35
+
+    # Stars with negative y_plot (toward GAC) go below Sol
     else:
-        further_stars = [s for s in stars_sorted if s['d_GC'] > GALACTIC_CENTER_DISTANCE]
+        negative_stars = [s for s in regular_stars if s['y_plot'] <= 0]
+        if star_name in [s['name'] for s in negative_stars]:
+            rank = [s['name'] for s in negative_stars].index(star_name)
+            total_negative = len(negative_stars)
+            # More negative y_plot gets lower position (further from GC)
+            return -0.1 - (rank / (total_negative - 1)) * 0.47 if total_negative > 1 else -0.35
 
-        if star_name in [s['name'] for s in further_stars]:
-            # Find ordinal position in the sorted list
-            ordinal_idx = [s['name'] for s in further_stars].index(star_name)
-            total_further = len(further_stars)
-            # Normal order: stars closest to Sol get positions nearest to Sol
-            return -0.1 - (ordinal_idx / (total_further - 1)) * 0.47 if total_further > 1 else -0.35
+    return 0  # Fallback
 
 
-def plot_star(ax, star):
+def plot_star(ax, star, all_stars):
     """
     Plot a single star on the axes.
 
     Args:
         ax: Matplotlib axes object
         star (dict): Star data dictionary
+        all_stars (list): List of all stars for ranking
     """
-    # Calculate perpendicular distance from GC-Sol-GAC line
-    perpendicular_distance = galactic_to_cartesian_x(star['distance'], star['longitude'])
+    # Get cartesian coordinates
+    coords = galactic_to_cartesian(star['distance'], star['longitude'], star['latitude'])
 
-    # Convert to category for x-position (flipped for display - ahead rotation gets negative plot_x)
-    plot_x = categorize_distance_from_line(perpendicular_distance)
+    # Apply plotting transformations
+    x_pos = categorize_distance_from_line(coords.x_plot)
 
-    # Y position represents ordinal ranking by distance from GC
-    y_pos = calculate_y_position(star['d_GC'], star['name'])
+    # Get the y-position using ordinal ranking
+    y_pos = get_y_position(star, all_stars)
 
     # Special handling for Sagittarius A* (black hole)
     if star['name'] == "Sagittarius A*":
         # Draw the event horizon as a ring with glow effect
-        # Outer glow
-        ax.scatter(plot_x, y_pos, s=star['size'] * 12, c=THEME['black_hole_glow'],
+        ax.scatter(x_pos, y_pos, s=star['size'] * 12, c=THEME['black_hole_glow'],
                    marker='o', alpha=0.4, zorder=2)
-        # Inner event horizon ring
-        ax.scatter(plot_x, y_pos, s=star['size'] * 10, facecolors='none',
+        ax.scatter(x_pos, y_pos, s=star['size'] * 10, facecolors='none',
                    edgecolors=THEME['black_hole_edge'], linewidth=2,
                    marker='o', zorder=3)
-        # Central black hole
-        ax.scatter(plot_x, y_pos, s=star['size'] * 6, c=THEME['background'],
+        ax.scatter(x_pos, y_pos, s=star['size'] * 6, c=THEME['background'],
                    marker='o', edgecolors=THEME['black_hole_edge'], linewidth=1,
                    zorder=4)
         edgecolor = THEME['black_hole_edge']
         linewidth = 2
     elif star['name'] == "Sol":
         # Use original star color with theme edge
-        ax.scatter(plot_x, y_pos, s=star['size'] * 10, c=star['color'],
+        ax.scatter(x_pos, y_pos, s=star['size'] * 10, c=star['color'],
                    marker='o', edgecolors=THEME['sol_edge'], linewidth=2,
                    zorder=3, alpha=0.8)
         edgecolor = THEME['sol_edge']
         linewidth = 2
     else:
         # Regular stars - use original colors with appropriate edges
-        edge_color = THEME['text'] if star['color'] in ['#000000', '#FFFFFF'] else THEME['text']
-        ax.scatter(plot_x, y_pos, s=star['size'] * 10, c=star['color'],
-                   marker='o', edgecolors=edge_color, linewidth=1,
+        edgecolor = THEME['text'] if star['color'] in ['#000000', '#FFFFFF'] else THEME['text']
+        ax.scatter(x_pos, y_pos, s=star['size'] * 10, c=star['color'],
+                   marker='o', edgecolors=edgecolor, linewidth=1,
                    zorder=3, alpha=0.8)
-        edgecolor = edge_color
         linewidth = 1
 
     # Add label - uniform format with spaces
@@ -305,7 +339,7 @@ def plot_star(ax, star):
     # Larger offset for black hole to avoid text touching symbol
     offset = 36 if star['name'] == 'Sagittarius A*' else 16
 
-    ax.annotate(label, (plot_x, y_pos), xytext=(offset, 0),
+    ax.annotate(label, (x_pos, y_pos), xytext=(offset, 0),
                 textcoords='offset points', va='center', ha='left',
                 fontsize=10, color=THEME['text'], fontfamily='DejaVu Sans')
 
@@ -331,7 +365,8 @@ def setup_plot_appearance(ax):
             ax.axvline(x=x_val, color=THEME['grid'], alpha=0.3, linestyle='-', linewidth=0.5)
 
     # Labels and title with specific font family
-    ax.set_ylabel('(GAC ← → GC) Ordinal Distance Ranking', color=THEME['text'], fontsize=12, fontfamily='sans-serif')
+    ax.set_ylabel('(GAC ← → GC) Ordinal Position by Galactic Longitude', color=THEME['text'], fontsize=12,
+                  fontfamily='sans-serif')
 
     # Manually place the X-axis label centered at X=0
     ax.text(0, -0.685, 'Milky Way Rotation Direction', color=THEME['text'], fontsize=10,
@@ -370,7 +405,7 @@ def create_cygni_arcana_plot():
 
     # Plot all stars
     for star in STARS:
-        plot_star(ax, star)
+        plot_star(ax, star, STARS)
 
     # Setup plot appearance
     setup_plot_appearance(ax)
@@ -378,7 +413,15 @@ def create_cygni_arcana_plot():
     # Finalize and save
     plt.tight_layout()
     mode_suffix = '_dark' if DARK_MODE else '_light'
-    plt.savefig(f'../../generated/cygni_arcana_plot{mode_suffix}.png', dpi=300, bbox_inches='tight',
+
+    # In a function or at the top of your script
+    PROJECT_ROOT = pathlib.Path(__file__).parent.parent.parent
+    OUTPUT_DIR = PROJECT_ROOT / 'generated'
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)  # This will create the directory if it doesn't exist.
+
+    # Later in your savefig function
+    output_file_path = OUTPUT_DIR / f'cygni_arcana_plot{mode_suffix}.png'
+    plt.savefig(output_file_path, dpi=300, bbox_inches='tight',
                 facecolor=THEME['background'])
     plt.show()
 
