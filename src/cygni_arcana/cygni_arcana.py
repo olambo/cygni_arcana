@@ -78,17 +78,17 @@ STARS = [
      "tarot": "The Moon", "roman": "XVIII",
      "color": "#1C1CF0"},
 
-    {"name": "Antares", "distance": 550, "longitude": 351, "latitude": -4.6, "size": 50,
+    {"name": "Antares", "distance": 550, "longitude": 351, "latitude": -4.6, "size": 55,
      "tarot": "The Hierophant", "roman": "V",
      "color": "#FF4500"},
 
-    {"name": "Deneb", "distance": 1500, "longitude": 80, "latitude": 2.1, "size": 50,
+    {"name": "Deneb", "distance": 1500, "longitude": 80, "latitude": 2.1, "size": 45,
      "tarot": "The High Priestess", "roman": "II",
      "color": "#CFE2F3"},
 
-    {"name": "Albireo", "distance": 430, "longitude": 62, "latitude": -1.2, "size": 25,
+    {"name": "Albireo", "distance": 430, "longitude": 62, "latitude": -1.2, "size": 20,
      "tarot": "The Lovers", "roman": "VI",
-     "color": "#FFD700"},
+     "color": "#FFD700", "edge_color": "#0080FF"},
 
     {"name": "Spica", "distance": 250, "longitude": 316, "latitude": 50.8, "size": 25,
      "tarot": "Strength", "roman": "VIII",
@@ -142,11 +142,11 @@ STARS = [
      "tarot": "Death", "roman": "XIII",
      "color": "#FF4500"},
 
-    {"name": "Betelgeuse", "distance": 642, "longitude": 199, "latitude": 9.0, "size": 50,
+    {"name": "Betelgeuse", "distance": 642, "longitude": 199, "latitude": 9.0, "size": 60,
      "tarot": "The Tower", "roman": "XVI",
      "color": "#FF4500"},
 
-    {"name": "Canopus", "distance": 310, "longitude": 261.2, "latitude": -25.3, "size": 45,
+    {"name": "Canopus", "distance": 310, "longitude": 261.2, "latitude": -25.3, "size": 35,
      "tarot": "The Hermit", "roman": "IX",
      "color": "#F0E68C"},
 
@@ -228,7 +228,7 @@ def categorize_x_plot(perpendicular_distance):
         return sign * 2  # Far from line (far_ahead/far_behind)
 
 
-def get_y_position(star_data, all_stars):
+def rank_y_plot(star_data, all_stars):
     """
     Calculates the y-position based on ordinal ranking by y_plot coordinate.
 
@@ -298,11 +298,11 @@ def plot_star(ax, star, all_stars):
     # Get cartesian coordinates
     coords = galactic_to_cartesian(star['distance'], star['longitude'], star['latitude'])
 
-    # Apply plotting transformations
+    # Get the x-position using categories
     x_pos = categorize_x_plot(coords.x_plot)
 
     # Get the y-position using ordinal ranking
-    y_pos = get_y_position(star, all_stars)
+    y_pos = rank_y_plot(star, all_stars)
 
     # Special handling for Sagittarius A* (black hole)
     if star['name'] == "Sagittarius A*":
@@ -326,11 +326,16 @@ def plot_star(ax, star, all_stars):
         linewidth = 2
     else:
         # Regular stars - use original colors with appropriate edges
-        edgecolor = THEME['text'] if star['color'] in ['#000000', '#FFFFFF'] else THEME['text']
+        # Check if star has custom edge color (like Albireo's blue ring)
+        if 'edge_color' in star:
+            edgecolor = star['edge_color']
+            linewidth = 3  # Thicker ring for custom edge colors
+        else:
+            edgecolor = THEME['text'] if star['color'] in ['#000000', '#FFFFFF'] else THEME['text']
+            linewidth = 1
         ax.scatter(x_pos, y_pos, s=star['size'] * 10, c=star['color'],
-                   marker='o', edgecolors=edgecolor, linewidth=1,
+                   marker='o', edgecolors=edgecolor, linewidth=linewidth,
                    zorder=3, alpha=0.8)
-        linewidth = 1
 
     # Add label - uniform format with spaces
     label = f"{star['name'].strip()} ({star['distance']} ly) {star['tarot']} {star['roman']}"
